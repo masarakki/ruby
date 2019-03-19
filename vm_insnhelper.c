@@ -1469,6 +1469,27 @@ FLONUM_2_P(VALUE a, VALUE b)
 #endif
 }
 
+static inline int
+special_const_comparability(VALUE obj)
+{
+    switch (TYPE(obj)) {
+      case T_FIXNUM:
+	return (EQ_UNREDEFINED_P(INTEGER) != 0) * 2 - 1;
+      case T_FLOAT:
+        return (EQ_UNREDEFINED_P(FLOAT) != 0) * 2 - 1;
+      case T_SYMBOL:
+        return (EQ_UNREDEFINED_P(SYMBOL) != 0) * 2 - 1;
+      case T_NIL:
+        return (EQ_UNREDEFINED_P(NIL) != 0) * 2 - 1;
+      case T_TRUE:
+        return (EQ_UNREDEFINED_P(TRUE) != 0) * 2 - 1;
+      case T_FALSE:
+        return (EQ_UNREDEFINED_P(FALSE) != 0) * 2 - 1;
+      default:
+        UNREACHABLE_RETURN(0);
+    }
+}
+
 /* 1: compare by identity, 0: not applicable, -1: redefined */
 static inline int
 comparable_by_identity(VALUE recv, VALUE obj)
@@ -1481,6 +1502,15 @@ comparable_by_identity(VALUE recv, VALUE obj)
     }
     if (SYMBOL_P(recv) && SYMBOL_P(obj)) {
 	return (EQ_UNREDEFINED_P(SYMBOL) != 0) * 2 - 1;
+    }
+    if ((FIXNUM_P(recv) && FLONUM_P(obj)) ||
+        (FLONUM_P(recv) && FIXNUM_P(obj))) {
+        return 0; // numerical conversion costs
+    }
+    if (SPECIAL_CONST_P(recv) && SPECIAL_CONST_P(obj)) {
+        int recv_comparability = special_const_comparability(recv);
+        int obj_comparability = special_const_comparability(obj);
+        return MIN(recv_comparability, obj_comparability);
     }
     return 0;
 }
