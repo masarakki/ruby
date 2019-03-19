@@ -1469,6 +1469,39 @@ FLONUM_2_P(VALUE a, VALUE b)
 #endif
 }
 
+static inline bool
+special_const_eq_unredefined_p(VALUE obj)
+{
+    int type = TYPE(obj);
+    int flag;
+
+    switch(type) {
+    case T_FIXNUM:
+        flag = INTEGER_REDEFINED_OP_FLAG;
+        break;
+    case T_FLOAT:
+        // only flonum Float is a special const
+        flag = FLOAT_REDEFINED_OP_FLAG;
+        break;
+    case T_SYMBOL:
+        // only static Symbol is a special const
+        flag = SYMBOL_REDEFINED_OP_FLAG;
+        break;
+    case T_NIL:
+        flag = NIL_REDEFINED_OP_FLAG;
+        break;
+    case T_TRUE:
+        flag = TRUE_REDEFINED_OP_FLAG;
+        break;
+    case T_FALSE:
+        flag = FALSE_REDEFINED_OP_FLAG;
+        break;
+    default:
+        return false;
+    }
+    return BASIC_OP_UNREDEFINED_P(BOP_EQ, flag);
+}
+
 /* 1: compare by identity, 0: not applicable, -1: redefined */
 static inline int
 comparable_by_identity(VALUE recv, VALUE obj)
@@ -1481,6 +1514,15 @@ comparable_by_identity(VALUE recv, VALUE obj)
     }
     if (SYMBOL_P(recv) && SYMBOL_P(obj)) {
 	return (EQ_UNREDEFINED_P(SYMBOL) != 0) * 2 - 1;
+    }
+    if ((FIXNUM_P(recv) && FLONUM_P(obj)) ||
+        (FLONUM_P(recv) && FIXNUM_P(obj))) {
+        return 0; // numerical conversion costs
+    }
+    if (SPECIAL_CONST_P(recv) && SPECIAL_CONST_P(obj) &&
+        special_const_eq_unredefined_p(recv) &&
+        special_const_eq_unredefined_p(obj)) {
+        return 1;
     }
     return 0;
 }
